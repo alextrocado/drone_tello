@@ -50,9 +50,9 @@ export const useDroneController = () => {
       });
       await waitForCompletion('takeoff');
       
-      // Reset path after takeoff so the trail starts from the hover position
-      const currentDrone = getDrone();
-      useDroneStore.getState().setPath([{ x: currentDrone.x, y: currentDrone.y, z: currentDrone.z }]);
+      // Do not reset path after takeoff, so we see the ascent
+      // const currentDrone = getDrone();
+      // useDroneStore.getState().setPath([{ x: currentDrone.x, y: currentDrone.y, z: currentDrone.z }]);
       
       addLog('Takeoff complete.');
     },

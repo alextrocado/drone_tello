@@ -3,18 +3,57 @@ import { Stage, Layer, Circle, Line, Rect, Text, Group } from 'react-konva';
 import { useDroneStore } from '../store';
 
 // Drone Icon (Simple SVG representation or just a shape)
-const DroneShape = ({ x, y, rotation }: { x: number; y: number; rotation: number }) => {
+const DroneShape = ({ x, y, z, rotation, isFlying }: { x: number; y: number; z: number; rotation: number; isFlying: boolean }) => {
+  // Scale based on height (simulated perspective)
+  // Max height ~200cm? Scale 1.0 to 1.5
+  const scale = isFlying ? 1 + Math.min(z, 200) / 500 : 1;
+  const shadowOpacity = isFlying ? Math.max(0.1, 0.5 - z / 200) : 0;
+
   return (
-    <Group x={x} y={y} rotation={rotation}>
-      {/* Body */}
-      <Circle radius={15} fill="#3b82f6" stroke="#1d4ed8" strokeWidth={2} />
-      {/* Front Indicator */}
-      <Rect x={-2} y={-20} width={4} height={10} fill="#ef4444" />
-      {/* Propellers */}
-      <Circle x={-15} y={-15} radius={8} fill="rgba(0,0,0,0.2)" />
-      <Circle x={15} y={-15} radius={8} fill="rgba(0,0,0,0.2)" />
-      <Circle x={-15} y={15} radius={8} fill="rgba(0,0,0,0.2)" />
-      <Circle x={15} y={15} radius={8} fill="rgba(0,0,0,0.2)" />
+    <Group x={x} y={y}>
+      {/* Shadow (stays on ground) */}
+      {isFlying && (
+        <Circle 
+            radius={15} 
+            fill="black" 
+            opacity={shadowOpacity} 
+            scaleX={1} 
+            scaleY={1}
+        />
+      )}
+
+      {/* Drone Body (scales up with height) */}
+      <Group rotation={rotation} scaleX={scale} scaleY={scale}>
+        {/* Arms */}
+        <Line points={[-15, -15, 15, 15]} stroke="#333" strokeWidth={4} />
+        <Line points={[15, -15, -15, 15]} stroke="#333" strokeWidth={4} />
+
+        {/* Propellers (animate if flying? Konva animation is tricky in functional component, keep static or simple) */}
+        <Circle x={-15} y={-15} radius={8} fill={isFlying ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.3)"} stroke="#333" strokeWidth={1} />
+        <Circle x={15} y={-15} radius={8} fill={isFlying ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.3)"} stroke="#333" strokeWidth={1} />
+        <Circle x={-15} y={15} radius={8} fill={isFlying ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.3)"} stroke="#333" strokeWidth={1} />
+        <Circle x={15} y={15} radius={8} fill={isFlying ? "rgba(0,0,0,0.1)" : "rgba(0,0,0,0.3)"} stroke="#333" strokeWidth={1} />
+
+        {/* Body */}
+        <Circle radius={10} fill={isFlying ? "#ef4444" : "#64748b"} stroke="#fff" strokeWidth={2} />
+        
+        {/* Front Indicator */}
+        <Rect x={-2} y={-12} width={4} height={8} fill="#fff" />
+      </Group>
+
+      {/* Status Label */}
+      {!isFlying && (
+          <Text 
+            x={20} 
+            y={-10} 
+            text="LANDED" 
+            fontSize={12} 
+            fontFamily="sans-serif" 
+            fill="#64748b" 
+            fontStyle="bold"
+            align="left"
+          />
+      )}
     </Group>
   );
 };
@@ -23,7 +62,6 @@ export const Simulator: React.FC = () => {
   const { drone } = useDroneStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  // Removed unused scale state
 
   useEffect(() => {
     const updateSize = () => {
@@ -46,10 +84,6 @@ export const Simulator: React.FC = () => {
   const centerY = dimensions.height / 2;
 
   // Transform drone coordinates (cm) to canvas pixels
-  // Let's say 1px = 1cm for simplicity, or scale it down
-  // Tello moves in cm. 100cm = 1m.
-  // If we want 5m x 5m area visible, that's 500px x 500px.
-  // Let's use a scale factor.
   const PIXELS_PER_CM = 1; 
 
   const canvasX = centerX + drone.x * PIXELS_PER_CM;
@@ -78,13 +112,19 @@ export const Simulator: React.FC = () => {
           />
 
           {/* Drone */}
-          <DroneShape x={canvasX} y={canvasY} rotation={drone.yaw} />
+          <DroneShape 
+            x={canvasX} 
+            y={canvasY} 
+            z={drone.z}
+            rotation={drone.yaw} 
+            isFlying={drone.isFlying}
+          />
 
           {/* Info Text */}
           <Text 
             x={10} 
             y={10} 
-            text={`X: ${drone.x.toFixed(0)} cm\nY: ${drone.y.toFixed(0)} cm\nZ: ${drone.z.toFixed(0)} cm\nYaw: ${drone.yaw.toFixed(0)}°`}
+            text={`STATUS: ${drone.isFlying ? 'FLYING' : 'LANDED'}\nX: ${drone.x.toFixed(0)} cm\nY: ${drone.y.toFixed(0)} cm\nZ: ${drone.z.toFixed(0)} cm\nYaw: ${drone.yaw.toFixed(0)}°`}
             fontSize={14}
             fontFamily="monospace"
             fill="#334155"
