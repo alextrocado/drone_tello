@@ -1,0 +1,5 @@
+{
+  "name": "Tello Drone Simulator",
+  "description": "A web-based simulator for Tello drones supporting Block-based and Python programming.",
+  "requestFramePermissions": []
+}
