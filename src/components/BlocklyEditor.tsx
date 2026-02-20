@@ -7,11 +7,11 @@ import 'blockly/blocks';
 // Define custom blocks
 Blockly.Blocks['tello_takeoff'] = {
   init: function () {
-    this.appendDummyInput().appendField('Takeoff');
+    this.appendDummyInput().appendField('Descolar');
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(230);
-    this.setTooltip('Take off automatically');
+    this.setTooltip('Descolar automaticamente');
   },
 };
 
@@ -25,11 +25,11 @@ pythonGenerator.forBlock['tello_takeoff'] = function () {
 
 Blockly.Blocks['tello_land'] = {
   init: function () {
-    this.appendDummyInput().appendField('Land');
+    this.appendDummyInput().appendField('Aterrar');
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(230);
-    this.setTooltip('Land automatically');
+    this.setTooltip('Aterrar automaticamente');
   },
 };
 
@@ -44,21 +44,21 @@ pythonGenerator.forBlock['tello_land'] = function () {
 Blockly.Blocks['tello_move'] = {
   init: function () {
     this.appendDummyInput()
-      .appendField('Move')
+      .appendField('Mover')
       .appendField(new Blockly.FieldDropdown([
-        ['Forward', 'forward'],
-        ['Back', 'back'],
-        ['Left', 'left'],
-        ['Right', 'right'],
-        ['Up', 'up'],
-        ['Down', 'down'],
+        ['Frente', 'forward'],
+        ['Trás', 'back'],
+        ['Esquerda', 'left'],
+        ['Direita', 'right'],
+        ['Cima', 'up'],
+        ['Baixo', 'down'],
       ]), 'DIRECTION')
       .appendField(new Blockly.FieldNumber(100, 20, 500), 'DISTANCE')
       .appendField('cm');
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(160);
-    this.setTooltip('Move the drone in a direction');
+    this.setTooltip('Mover o drone numa direção');
   },
 };
 
@@ -77,17 +77,17 @@ pythonGenerator.forBlock['tello_move'] = function (block: any) {
 Blockly.Blocks['tello_rotate'] = {
   init: function () {
     this.appendDummyInput()
-      .appendField('Rotate')
+      .appendField('Rodar')
       .appendField(new Blockly.FieldDropdown([
-        ['Clockwise', 'cw'],
-        ['Counter-Clockwise', 'ccw'],
+        ['Sentido Horário', 'cw'],
+        ['Sentido Anti-Horário', 'ccw'],
       ]), 'DIRECTION')
       .appendField(new Blockly.FieldNumber(90, 1, 360), 'DEGREE')
-      .appendField('degrees');
+      .appendField('graus');
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(160);
-    this.setTooltip('Rotate the drone');
+    this.setTooltip('Rodar o drone');
   },
 };
 
@@ -107,17 +107,17 @@ pythonGenerator.forBlock['tello_rotate'] = function (block: any) {
 Blockly.Blocks['tello_flip'] = {
   init: function () {
     this.appendDummyInput()
-      .appendField('Flip')
+      .appendField('Acrobacia')
       .appendField(new Blockly.FieldDropdown([
-        ['Forward', 'f'],
-        ['Back', 'b'],
-        ['Left', 'l'],
-        ['Right', 'r'],
+        ['Frente', 'f'],
+        ['Trás', 'b'],
+        ['Esquerda', 'l'],
+        ['Direita', 'r'],
       ]), 'DIRECTION');
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(290);
-    this.setTooltip('Flip the drone');
+    this.setTooltip('Fazer uma acrobacia');
   },
 };
 
@@ -129,6 +129,111 @@ javascriptGenerator.forBlock['tello_flip'] = function (block: any) {
 pythonGenerator.forBlock['tello_flip'] = function (block: any) {
   const direction = block.getFieldValue('DIRECTION');
   return `tello.flip('${direction}')\n`;
+};
+
+Blockly.Blocks['tello_set_speed'] = {
+  init: function () {
+    this.appendValueInput('SPEED')
+        .setCheck('Number')
+        .appendField('Definir Velocidade');
+    this.appendDummyInput().appendField('cm/s');
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour(160);
+    this.setTooltip('Definir velocidade de voo (10-100)');
+  },
+};
+
+javascriptGenerator.forBlock['tello_set_speed'] = function (block: any) {
+  const speed = javascriptGenerator.valueToCode(block, 'SPEED', 0) || '10';
+  return `await tello.set_speed(${speed});\n`;
+};
+
+pythonGenerator.forBlock['tello_set_speed'] = function (block: any) {
+  const speed = pythonGenerator.valueToCode(block, 'SPEED', 0) || '10';
+  return `tello.set_speed(${speed})\n`;
+};
+
+Blockly.Blocks['tello_get_battery'] = {
+  init: function () {
+    this.appendDummyInput().appendField('Obter Bateria (%)');
+    this.setOutput(true, 'Number');
+    this.setColour(210);
+    this.setTooltip('Obter nível de bateria atual');
+  },
+};
+
+javascriptGenerator.forBlock['tello_get_battery'] = function () {
+  return ['tello.get_battery()', 0];
+};
+
+pythonGenerator.forBlock['tello_get_battery'] = function () {
+  return ['tello.get_battery()', 0];
+};
+
+Blockly.Blocks['tello_get_height'] = {
+  init: function () {
+    this.appendDummyInput().appendField('Obter Altura (cm)');
+    this.setOutput(true, 'Number');
+    this.setColour(210);
+    this.setTooltip('Obter altura atual');
+  },
+};
+
+javascriptGenerator.forBlock['tello_get_height'] = function () {
+  return ['tello.get_height()', 0];
+};
+
+pythonGenerator.forBlock['tello_get_height'] = function () {
+  return ['tello.get_height()', 0];
+};
+
+Blockly.Blocks['tello_go_xyz_speed'] = {
+  init: function () {
+    this.appendDummyInput().appendField('Ir para Posição');
+    this.appendValueInput('X').setCheck('Number').appendField('x:');
+    this.appendValueInput('Y').setCheck('Number').appendField('y:');
+    this.appendValueInput('Z').setCheck('Number').appendField('z:');
+    this.appendValueInput('SPEED').setCheck('Number').appendField('vel:');
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour(160);
+    this.setTooltip('Voar para coordenadas (x, y, z) à velocidade definida');
+  },
+};
+
+javascriptGenerator.forBlock['tello_go_xyz_speed'] = function (block: any) {
+  const x = javascriptGenerator.valueToCode(block, 'X', 0) || '0';
+  const y = javascriptGenerator.valueToCode(block, 'Y', 0) || '0';
+  const z = javascriptGenerator.valueToCode(block, 'Z', 0) || '0';
+  const speed = javascriptGenerator.valueToCode(block, 'SPEED', 0) || '10';
+  return `await tello.go_xyz_speed(${x}, ${y}, ${z}, ${speed});\n`;
+};
+
+pythonGenerator.forBlock['tello_go_xyz_speed'] = function (block: any) {
+  const x = pythonGenerator.valueToCode(block, 'X', 0) || '0';
+  const y = pythonGenerator.valueToCode(block, 'Y', 0) || '0';
+  const z = pythonGenerator.valueToCode(block, 'Z', 0) || '0';
+  const speed = pythonGenerator.valueToCode(block, 'SPEED', 0) || '10';
+  return `tello.go_xyz_speed(${x}, ${y}, ${z}, ${speed})\n`;
+};
+
+Blockly.Blocks['tello_emergency'] = {
+  init: function () {
+    this.appendDummyInput().appendField('EMERGÊNCIA');
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour(0);
+    this.setTooltip('Parar motores imediatamente');
+  },
+};
+
+javascriptGenerator.forBlock['tello_emergency'] = function () {
+  return 'await tello.emergency();\n';
+};
+
+pythonGenerator.forBlock['tello_emergency'] = function () {
+  return 'tello.emergency()\n';
 };
 
 interface BlocklyEditorProps {
@@ -181,6 +286,27 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
              if (match) {
                  fields['DIRECTION'] = match[1];
              }
+        } else if (trimmed.includes('set_speed')) {
+             blockType = 'tello_set_speed';
+             const match = trimmed.match(/set_speed\((\d+)\)/);
+             if (match) {
+                 // Value inputs are harder to set directly via fields in this simple parser
+                 // Ideally we'd need to create a shadow block or value block
+                 // For now, let's just skip complex value parsing for this simple sync
+             }
+        } else if (trimmed.includes('emergency')) {
+             blockType = 'tello_emergency';
+        } else if (trimmed.includes('go_xyz_speed')) {
+             blockType = 'tello_go_xyz_speed';
+             // tello.go_xyz_speed(10, 20, 30, 50)
+             const match = trimmed.match(/go_xyz_speed\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+             if (match) {
+                 // We need to set shadow blocks or values for inputs X, Y, Z, SPEED
+                 // This is complex in this simple parser without creating sub-blocks
+                 // For now, we just create the block, user has to re-enter values
+                 // Or we could try to set field values if we change the block definition to use fields instead of value inputs
+                 // But value inputs are better for variables.
+             }
         }
 
         if (blockType) {
@@ -209,26 +335,38 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
         contents: [
           {
             kind: 'category',
-            name: 'Flight',
+            name: 'Voo',
             colour: '230',
             contents: [
               { kind: 'block', type: 'tello_takeoff' },
               { kind: 'block', type: 'tello_land' },
+              { kind: 'block', type: 'tello_emergency' },
+              { kind: 'block', type: 'tello_set_speed' },
             ],
           },
           {
             kind: 'category',
-            name: 'Movement',
+            name: 'Movimento',
             colour: '160',
             contents: [
               { kind: 'block', type: 'tello_move' },
               { kind: 'block', type: 'tello_rotate' },
               { kind: 'block', type: 'tello_flip' },
+              { kind: 'block', type: 'tello_go_xyz_speed' },
             ],
           },
           {
             kind: 'category',
-            name: 'Logic',
+            name: 'Dados',
+            colour: '210',
+            contents: [
+              { kind: 'block', type: 'tello_get_battery' },
+              { kind: 'block', type: 'tello_get_height' },
+            ],
+          },
+          {
+            kind: 'category',
+            name: 'Lógica',
             colour: '210',
             contents: [
               { kind: 'block', type: 'controls_repeat_ext' },

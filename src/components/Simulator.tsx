@@ -46,7 +46,7 @@ const DroneShape = ({ x, y, z, rotation, isFlying }: { x: number; y: number; z: 
           <Text 
             x={20} 
             y={-10} 
-            text="LANDED" 
+            text="ATERRADO" 
             fontSize={12} 
             fontFamily="sans-serif" 
             fill="#64748b" 
@@ -124,7 +124,7 @@ export const Simulator: React.FC = () => {
           <Text 
             x={10} 
             y={10} 
-            text={`STATUS: ${drone.isFlying ? 'FLYING' : 'LANDED'}\nX: ${drone.x.toFixed(0)} cm\nY: ${drone.y.toFixed(0)} cm\nZ: ${drone.z.toFixed(0)} cm\nYaw: ${drone.yaw.toFixed(0)}°`}
+            text={`ESTADO: ${drone.isFlying ? 'A VOAR' : 'ATERRADO'}\nVEL: ${drone.speedSetting || 10} cm/s\nX: ${drone.x.toFixed(0)} cm\nY: ${drone.y.toFixed(0)} cm\nZ: ${drone.z.toFixed(0)} cm\nYaw: ${drone.yaw.toFixed(0)}°`}
             fontSize={14}
             fontFamily="monospace"
             fill="#334155"
@@ -132,7 +132,7 @@ export const Simulator: React.FC = () => {
         </Layer>
       </Stage>
       <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur p-2 rounded text-xs text-slate-500 pointer-events-none">
-        1 grid square = 50cm
+        1 quadrado = 50cm
       </div>
     </div>
   );

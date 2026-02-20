@@ -199,7 +199,7 @@ export const ThreeSimulator: React.FC = () => {
         <OrbitControls makeDefault />
       </Canvas>
       <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur p-2 rounded text-xs text-white pointer-events-none">
-        3D View (1 unit = 10cm)
+        Vista 3D (1 unidade = 10cm)
       </div>
     </div>
   );

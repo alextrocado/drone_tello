@@ -52,7 +52,8 @@ export const usePhysicsEngine = () => {
                 const Kv = 2.5; // Velocity damping
 
                 // Desired Vel
-                const MAX_SPEED = 1.5; // m/s
+                // Use speedSetting from store (cm/s) converted to m/s
+                const MAX_SPEED = (drone.speedSetting || 10) / 100; 
                 let vDesX = ex * Kp;
                 let vDesY = ey * Kp;
                 let vDesZ = ez * Kp;

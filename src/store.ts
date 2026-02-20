@@ -7,6 +7,7 @@ export type DroneState = {
   yaw: number; // rotation in degrees
   battery: number;
   isFlying: boolean;
+  speedSetting: number; // cm/s
   path: { x: number; y: number; z: number }[];
   history: { time: number; height: number; battery: number; speed: number }[];
   trailSettings: {
@@ -44,6 +45,7 @@ const INITIAL_STATE: DroneState = {
   yaw: 0,
   battery: 100,
   isFlying: false,
+  speedSetting: 60, // Default Tello speed (approx)
   path: [{ x: 0, y: 0, z: 0 }],
   history: [],
   trailSettings: {

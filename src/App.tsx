@@ -79,7 +79,7 @@ function App() {
         const value = target[prop as keyof typeof telloController];
         if (typeof value === 'function') {
           return async (...args: any[]) => {
-            if (!isRunningRef.current) throw new Error('Mission Aborted');
+            if (!isRunningRef.current) throw new Error('Missão Abortada');
             return value.apply(this, args);
           };
         }
@@ -140,14 +140,34 @@ function App() {
              const match = trimmed.match(/\(['"](\w+)['"]\)/);
              if (match) await safeTello.flip(match[1]);
           }
+          else if (trimmed.includes('set_speed')) {
+             const match = trimmed.match(/\((\d+)\)/);
+             if (match) await safeTello.set_speed(parseInt(match[1]));
+          }
+          else if (trimmed.includes('go_xyz_speed')) {
+             // tello.go_xyz_speed(x, y, z, speed)
+             // Allow spaces around arguments
+             const match = trimmed.match(/\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*\)/);
+             if (match) {
+                 await safeTello.go_xyz_speed(
+                     parseInt(match[1]), 
+                     parseInt(match[2]), 
+                     parseInt(match[3]), 
+                     parseInt(match[4])
+                 );
+             }
+          }
+          else if (trimmed.includes('emergency')) {
+             await safeTello.emergency();
+          }
         }
       }
     } catch (e: any) {
-      if (e?.message !== 'Mission Aborted') {
+      if (e?.message !== 'Missão Abortada') {
         console.error(e);
-        useDroneStore.getState().addLog(`Error: ${e}`);
+        useDroneStore.getState().addLog(`Erro: ${e}`);
       } else {
-        useDroneStore.getState().addLog('Mission Aborted.');
+        useDroneStore.getState().addLog('Missão Abortada.');
       }
     } finally {
       isRunningRef.current = false;
@@ -184,7 +204,7 @@ function App() {
               }`}
             >
               <Box className="w-4 h-4" />
-              Blocks
+              Blocos
             </button>
             <button
               onClick={() => setMode('python')}
@@ -202,7 +222,7 @@ function App() {
           <button
             onClick={resetDrone}
             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Reset Simulator"
+            title="Reiniciar Simulador"
           >
             <RotateCcw className="w-5 h-5" />
           </button>
@@ -211,7 +231,7 @@ function App() {
             onClick={handleStop}
             className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
           >
-            Stop
+            Parar
           </button>
 
           <button
@@ -219,7 +239,7 @@ function App() {
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm active:transform active:scale-95"
           >
             <Play className="w-4 h-4 fill-current" />
-            Run Mission
+            Executar Missão
           </button>
         </div>
       </header>
@@ -244,10 +264,10 @@ function App() {
           <div className="h-48 border-t border-slate-200 bg-slate-900 text-slate-200 flex flex-col">
             <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-slate-400">
               <Terminal className="w-3 h-3" />
-              Mission Log
+              Registo da Missão
             </div>
             <div className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1">
-              {logs.length === 0 && <span className="text-slate-600 italic">Ready to fly...</span>}
+              {logs.length === 0 && <span className="text-slate-600 italic">Pronto para voar...</span>}
               {logs.map((log, i) => (
                 <div key={i} className="flex gap-2">
                   <span className="text-blue-400 opacity-50">{log.split(']')[0]}]</span>
@@ -275,21 +295,21 @@ function App() {
                   <button
                       onClick={() => setViewMode('2d')}
                       className={`p-2 rounded-md transition-all ${viewMode === '2d' ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                      title="2D View"
+                      title="Vista 2D"
                   >
                       <Layers className="w-5 h-5" />
                   </button>
                   <button
                       onClick={() => setViewMode('3d')}
                       className={`p-2 rounded-md transition-all ${viewMode === '3d' ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                      title="3D View"
+                      title="Vista 3D"
                   >
                       <Globe className="w-5 h-5" />
                   </button>
                   <button
                       onClick={() => setViewMode('charts')}
                       className={`p-2 rounded-md transition-all ${viewMode === 'charts' ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                      title="Telemetry"
+                      title="Telemetria"
                   >
                       <Activity className="w-5 h-5" />
                   </button>
@@ -300,7 +320,7 @@ function App() {
                   <button
                     onClick={() => setShowSettings(!showSettings)}
                     className={`p-3 rounded-lg border border-slate-200 shadow-sm transition-all ${showSettings ? 'bg-blue-600 text-white' : 'bg-white/90 backdrop-blur text-slate-500 hover:text-slate-700'}`}
-                    title="Settings"
+                    title="Definições"
                   >
                     <Settings className="w-5 h-5" />
                   </button>
@@ -311,28 +331,28 @@ function App() {
                       {/* Environment Settings */}
                       <div className="mb-6">
                         <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                           <Globe className="w-4 h-4" /> Environment
+                           <Globe className="w-4 h-4" /> Ambiente
                         </h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-sm text-slate-600 block mb-1">Scenario</label>
+                                <label className="text-sm text-slate-600 block mb-1">Cenário</label>
                                 <select 
                                     value={environmentSettings.preset}
                                     onChange={(e) => updateEnvironmentSettings({ preset: e.target.value as any })}
                                     className="w-full p-2 border border-slate-300 rounded-md text-sm"
                                 >
-                                    <option value="city">City</option>
-                                    <option value="park">Park</option>
-                                    <option value="studio">Studio</option>
-                                    <option value="sunset">Sunset</option>
-                                    <option value="night">Night</option>
-                                    <option value="forest">Forest</option>
-                                    <option value="apartment">Apartment</option>
+                                    <option value="city">Cidade</option>
+                                    <option value="park">Parque</option>
+                                    <option value="studio">Estúdio</option>
+                                    <option value="sunset">Pôr do Sol</option>
+                                    <option value="night">Noite</option>
+                                    <option value="forest">Floresta</option>
+                                    <option value="apartment">Apartamento</option>
                                 </select>
                             </div>
 
                             <div className="flex items-center justify-between">
-                                <label className="text-sm text-slate-600">Show Grid</label>
+                                <label className="text-sm text-slate-600">Mostrar Grelha</label>
                                 <input 
                                     type="checkbox" 
                                     checked={environmentSettings.showGrid}
@@ -342,7 +362,7 @@ function App() {
                             </div>
 
                             <div>
-                                <label className="text-sm text-slate-600 block mb-1">Background Color</label>
+                                <label className="text-sm text-slate-600 block mb-1">Cor de Fundo</label>
                                 <div className="flex gap-2 flex-wrap">
                                     {['#0f172a', '#000000', '#ffffff', '#87CEEB', '#1a1a1a'].map(c => (
                                     <button
@@ -362,12 +382,12 @@ function App() {
                       {/* Trail Settings */}
                       <div>
                         <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                            <Activity className="w-4 h-4" /> Trail
+                            <Activity className="w-4 h-4" /> Trajetória
                         </h3>
                         
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <label className="text-sm text-slate-600">Show Trail</label>
+                              <label className="text-sm text-slate-600">Mostrar Trajetória</label>
                               <input 
                                 type="checkbox" 
                                 checked={trailSettings.show}
@@ -377,7 +397,7 @@ function App() {
                             </div>
 
                             <div>
-                              <label className="text-sm text-slate-600 block mb-1">Color</label>
+                              <label className="text-sm text-slate-600 block mb-1">Cor</label>
                               <div className="flex gap-2 flex-wrap">
                                 {['#00ffff', '#ff00ff', '#ffff00', '#ff0000', '#00ff00', '#0000ff', '#ffffff'].map(c => (
                                   <button
@@ -391,7 +411,7 @@ function App() {
                             </div>
 
                             <div>
-                              <label className="text-sm text-slate-600 block mb-1">Width: {trailSettings.width}px</label>
+                              <label className="text-sm text-slate-600 block mb-1">Espessura: {trailSettings.width}px</label>
                               <input 
                                 type="range" 
                                 min="1" 
