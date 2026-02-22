@@ -19,6 +19,7 @@ export type DroneState = {
     preset: 'city' | 'park' | 'studio' | 'sunset' | 'night' | 'forest' | 'apartment';
     showGrid: boolean;
     backgroundColor: string;
+    showBackground: boolean;
   };
   // Physics state
   velocity: { x: number; y: number; z: number };
@@ -57,6 +58,7 @@ const INITIAL_STATE: DroneState = {
     preset: 'city',
     showGrid: true,
     backgroundColor: '#0f172a', // slate-900
+    showBackground: false,
   },
   velocity: { x: 0, y: 0, z: 0 },
   target: { x: 0, y: 0, z: 0, yaw: 0 },

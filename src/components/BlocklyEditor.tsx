@@ -5,6 +5,28 @@ import { pythonGenerator } from 'blockly/python';
 import 'blockly/blocks';
 
 // Define custom blocks
+Blockly.Blocks['python_raw'] = {
+  init: function() {
+    const FieldMultiline = (Blockly as any).FieldMultilineInput || Blockly.FieldTextInput;
+    this.appendDummyInput()
+        .appendField("Python")
+        .appendField(new FieldMultiline("code"), "CODE");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
+    this.setColour(60);
+    this.setTooltip("Código Python personalizado");
+  }
+};
+
+javascriptGenerator.forBlock['python_raw'] = function(block: any) {
+  return '// Código Python nativo (não executável em modo Blocos)\n';
+};
+
+pythonGenerator.forBlock['python_raw'] = function(block: any) {
+  const code = block.getFieldValue('CODE');
+  return code + '\n';
+};
+
 Blockly.Blocks['tello_takeoff'] = {
   init: function () {
     this.appendDummyInput().appendField('Descolar');
@@ -246,71 +268,22 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
   const blocklyDiv = useRef<HTMLDivElement>(null);
   const workspace = useRef<Blockly.WorkspaceSvg | null>(null);
   const isInternalChange = useRef(false);
+  const isParsing = useRef(false);
 
   // Function to parse Python code and create blocks
   const loadBlocksFromPython = (code: string, ws: Blockly.WorkspaceSvg) => {
-    ws.clear();
-    const lines = code.split('\n');
-    let previousBlock: Blockly.Block | null = null;
+    isParsing.current = true;
+    try {
+        ws.clear();
+        // Sanitize code: replace non-breaking spaces with regular spaces
+        const sanitizedCode = code.replace(/\u00A0/g, ' ');
+        const lines = sanitizedCode.split('\n');
+        let previousBlock: Blockly.Block | null = null;
+        let unknownLines: string[] = [];
+        let captureIndent: number | null = null;
 
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-
-        let blockType = '';
-        let fields: Record<string, any> = {};
-
-        if (trimmed.includes('takeoff()')) {
-            blockType = 'tello_takeoff';
-        } else if (trimmed.includes('land()')) {
-            blockType = 'tello_land';
-        } else if (trimmed.includes('move_')) {
-            blockType = 'tello_move';
-            // tello.move_forward(100)
-            const match = trimmed.match(/move_(\w+)\((\d+)\)/);
-            if (match) {
-                fields['DIRECTION'] = match[1]; // forward, back, etc.
-                fields['DISTANCE'] = parseInt(match[2]);
-            }
-        } else if (trimmed.includes('rotate_')) {
-            blockType = 'tello_rotate';
-            // tello.rotate_clockwise(90)
-            const match = trimmed.match(/rotate_(clockwise|counter_clockwise)\((\d+)\)/);
-            if (match) {
-                fields['DIRECTION'] = match[1] === 'clockwise' ? 'cw' : 'ccw';
-                fields['DEGREE'] = parseInt(match[2]);
-            }
-        } else if (trimmed.includes('flip')) {
-             blockType = 'tello_flip';
-             const match = trimmed.match(/flip\(['"](\w+)['"]\)/);
-             if (match) {
-                 fields['DIRECTION'] = match[1];
-             }
-        } else if (trimmed.includes('set_speed')) {
-             blockType = 'tello_set_speed';
-             const match = trimmed.match(/set_speed\((\d+)\)/);
-             if (match) {
-                 // Value inputs are harder to set directly via fields in this simple parser
-                 // Ideally we'd need to create a shadow block or value block
-                 // For now, let's just skip complex value parsing for this simple sync
-             }
-        } else if (trimmed.includes('emergency')) {
-             blockType = 'tello_emergency';
-        } else if (trimmed.includes('go_xyz_speed')) {
-             blockType = 'tello_go_xyz_speed';
-             // tello.go_xyz_speed(10, 20, 30, 50)
-             const match = trimmed.match(/go_xyz_speed\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
-             if (match) {
-                 // We need to set shadow blocks or values for inputs X, Y, Z, SPEED
-                 // This is complex in this simple parser without creating sub-blocks
-                 // For now, we just create the block, user has to re-enter values
-                 // Or we could try to set field values if we change the block definition to use fields instead of value inputs
-                 // But value inputs are better for variables.
-             }
-        }
-
-        if (blockType) {
-            const block = ws.newBlock(blockType);
+        const createBlock = (type: string, fields: Record<string, any> = {}) => {
+            const block = ws.newBlock(type);
             for (const [key, value] of Object.entries(fields)) {
                 block.setFieldValue(value, key);
             }
@@ -321,9 +294,135 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
                 (previousBlock as any).nextConnection?.connect(block.previousConnection);
             }
             previousBlock = block;
+        };
+
+        const flushUnknown = () => {
+            if (unknownLines.length > 0) {
+                // Filter out empty lines from the end
+                while (unknownLines.length > 0 && !unknownLines[unknownLines.length - 1].trim()) {
+                    unknownLines.pop();
+                }
+                if (unknownLines.length > 0) {
+                    createBlock('python_raw', { 'CODE': unknownLines.join('\n') });
+                }
+                unknownLines = [];
+            }
+        };
+
+        const getIndent = (str: string) => {
+            let spaces = 0;
+            for (const char of str) {
+                if (char === ' ') spaces++;
+                else if (char === '\t') spaces += 4; // Assume 4 spaces for tab
+                else break;
+            }
+            return spaces;
+        };
+
+        for (const line of lines) {
+            // Preserve empty lines if we are capturing, but don't let them break capture logic
+            if (!line.trim()) {
+                if (unknownLines.length > 0) unknownLines.push(line);
+                continue;
+            }
+
+            const trimmed = line.trim();
+            const currentIndent = getIndent(line);
+            
+            // Skip setup code to avoid duplication (only at top level)
+            if (captureIndent === null && (
+                trimmed.startsWith('from djitellopy') || 
+                trimmed.startsWith('import time') || 
+                trimmed === 'tello = Tello()' || 
+                trimmed === 'tello.connect()')) {
+                continue;
+            }
+
+            // Check if we are in capture mode (inside a control structure)
+            if (captureIndent !== null) {
+                if (currentIndent > captureIndent) {
+                    // Still inside the block
+                    unknownLines.push(line);
+                    continue;
+                } else {
+                    // Indentation returned to level. Check for continuation keywords.
+                    if (trimmed.startsWith('else:') || 
+                        trimmed.startsWith('elif ') || 
+                        trimmed.startsWith('except') || 
+                        trimmed.startsWith('finally:')) {
+                        unknownLines.push(line);
+                        continue;
+                    }
+                    // End of captured block
+                    captureIndent = null;
+                    // Fall through to process this line as a new start
+                }
+            }
+
+            // Normal processing
+            let blockType = '';
+            let fields: Record<string, any> = {};
+
+            // Only recognize commands if we are NOT in a captured block (captureIndent is null)
+            // (We already handled the continue case above)
+
+            if (trimmed.includes('takeoff()')) {
+                blockType = 'tello_takeoff';
+            } else if (trimmed.includes('land()')) {
+                blockType = 'tello_land';
+            } else if (trimmed.includes('move_')) {
+                blockType = 'tello_move';
+                const match = trimmed.match(/move_(\w+)\((\d+)\)/);
+                if (match) {
+                    fields['DIRECTION'] = match[1];
+                    fields['DISTANCE'] = parseInt(match[2]);
+                }
+            } else if (trimmed.includes('rotate_')) {
+                blockType = 'tello_rotate';
+                const match = trimmed.match(/rotate_(clockwise|counter_clockwise)\((\d+)\)/);
+                if (match) {
+                    fields['DIRECTION'] = match[1] === 'clockwise' ? 'cw' : 'ccw';
+                    fields['DEGREE'] = parseInt(match[2]);
+                }
+            } else if (trimmed.includes('flip')) {
+                 blockType = 'tello_flip';
+                 const match = trimmed.match(/flip\(['"](\w+)['"]\)/);
+                 if (match) {
+                     fields['DIRECTION'] = match[1];
+                 }
+            } else if (trimmed.includes('set_speed')) {
+                 blockType = 'tello_set_speed';
+                 const match = trimmed.match(/set_speed\((\d+)\)/);
+                 if (match) {
+                     // Value inputs are harder to set directly via fields
+                 }
+            } else if (trimmed.includes('emergency')) {
+                 blockType = 'tello_emergency';
+            } else if (trimmed.includes('go_xyz_speed')) {
+                 blockType = 'tello_go_xyz_speed';
+                 const match = trimmed.match(/go_xyz_speed\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+                 if (match) {
+                     // Complex input
+                 }
+            }
+
+            if (blockType) {
+                flushUnknown();
+                createBlock(blockType, fields);
+            } else {
+                // Unknown line. Add to unknownLines.
+                unknownLines.push(line);
+                // Check if this line starts a control structure
+                if (trimmed.endsWith(':')) {
+                    captureIndent = currentIndent;
+                }
+            }
         }
+        flushUnknown();
+        ws.scrollCenter();
+    } finally {
+        isParsing.current = false;
     }
-    ws.scrollCenter();
   };
 
   useEffect(() => {
@@ -373,6 +472,14 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
               { kind: 'block', type: 'math_number' },
             ],
           },
+          {
+            kind: 'category',
+            name: 'Avançado',
+            colour: '60',
+            contents: [
+              { kind: 'block', type: 'python_raw' },
+            ],
+          },
         ],
       },
       grid: {
@@ -397,8 +504,22 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
         loadBlocksFromPython(initialPythonCode, workspace.current);
     }
 
-    const updateCode = () => {
+    const updateCode = (event: any) => {
       if (!workspace.current) return;
+      if (isParsing.current) return;
+      
+      // Filter events to avoid unnecessary updates
+      if (
+          event.type !== Blockly.Events.BLOCK_CHANGE &&
+          event.type !== Blockly.Events.BLOCK_CREATE &&
+          event.type !== Blockly.Events.BLOCK_DELETE &&
+          event.type !== Blockly.Events.BLOCK_MOVE &&
+          event.type !== Blockly.Events.VAR_CREATE &&
+          event.type !== Blockly.Events.VAR_DELETE &&
+          event.type !== Blockly.Events.VAR_RENAME
+      ) {
+          return;
+      }
       
       // Prevent loops if we were to support bidirectional live sync, 
       // but here we just emit changes.
@@ -409,7 +530,21 @@ export const BlocklyEditor: React.FC<BlocklyEditorProps> = ({ onCodeChange, onPy
 
       if (onPythonCodeChange) {
           const pyCode = pythonGenerator.workspaceToCode(workspace.current);
-          onPythonCodeChange(pyCode);
+          
+          // Only prepend setup if not already present
+          let finalCode = pyCode;
+          if (!pyCode.includes('from djitellopy import Tello')) {
+              const setupCode = `from djitellopy import Tello
+import time
+
+tello = Tello()
+tello.connect()
+
+`;
+              finalCode = setupCode + pyCode;
+          }
+          
+          onPythonCodeChange(finalCode);
       }
       
       isInternalChange.current = false;

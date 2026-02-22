@@ -187,7 +187,11 @@ export const ThreeSimulator: React.FC = () => {
       <Canvas shadows camera={{ position: [5, 5, 5], fov: 50 }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-        <Environment key={environmentSettings.preset} preset={environmentSettings.preset} />
+        <Environment 
+            key={environmentSettings.preset} 
+            preset={environmentSettings.preset} 
+            background={environmentSettings.showBackground}
+        />
         
         {environmentSettings.showGrid && (
             <Grid infiniteGrid fadeDistance={50} sectionColor="#4f4f4f" cellColor="#2f2f2f" />

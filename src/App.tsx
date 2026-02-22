@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, RotateCcw, Code, Box, Terminal, Activity, Layers, Globe, GripVertical, Settings } from 'lucide-react';
+import { Play, RotateCcw, Code, Box, Terminal, Activity, Layers, Globe, Settings } from 'lucide-react';
 import { BlocklyEditor } from './components/BlocklyEditor';
 import { PythonEditor } from './components/PythonEditor';
 import { Simulator } from './components/Simulator';
@@ -8,11 +8,22 @@ import { TelemetryCharts } from './components/TelemetryCharts';
 import { useDroneStore } from './store';
 import { useDroneController } from './hooks/useDroneController';
 import { usePhysicsEngine } from './hooks/usePhysicsEngine';
+import { runSkulpt } from './utils/skulptRunner';
 
 function App() {
   const [mode, setMode] = useState<'blocks' | 'python'>('blocks');
   const [viewMode, setViewMode] = useState<'2d' | '3d' | 'charts'>('3d');
-  const [pythonCode, setPythonCode] = useState<string>('tello.takeoff()\ntello.move_forward(100)\ntello.rotate_clockwise(90)\ntello.move_forward(100)\ntello.land()');
+  const [pythonCode, setPythonCode] = useState<string>(`from djitellopy import Tello
+import time
+
+tello = Tello()
+tello.connect()
+
+tello.takeoff()
+tello.move_forward(100)
+tello.rotate_clockwise(90)
+tello.move_forward(100)
+tello.land()`);
   const [blocklyCode, setBlocklyCode] = useState<string>('');
   const [showSettings, setShowSettings] = useState(false);
   
@@ -93,79 +104,16 @@ function App() {
         const runCode = new Function('tello', `return (async () => { ${blocklyCode} })();`);
         await runCode(safeTello);
       } else {
-        // Parse Python-ish code
-        const lines = pythonCode.split('\n');
-        for (const line of lines) {
-          if (!isRunningRef.current) break;
-          
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-
-          // Map python commands to controller methods
-          if (trimmed.includes('takeoff()')) await safeTello.takeoff();
-          else if (trimmed.includes('land()')) await safeTello.land();
-          else if (trimmed.includes('move_forward')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.forward(parseInt(match[1]));
-          }
-          else if (trimmed.includes('move_back')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.back(parseInt(match[1]));
-          }
-          else if (trimmed.includes('move_left')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.left(parseInt(match[1]));
-          }
-          else if (trimmed.includes('move_right')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.right(parseInt(match[1]));
-          }
-          else if (trimmed.includes('move_up')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.up(parseInt(match[1]));
-          }
-          else if (trimmed.includes('move_down')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.down(parseInt(match[1]));
-          }
-          else if (trimmed.includes('rotate_clockwise')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.rotate('cw', parseInt(match[1]));
-          }
-          else if (trimmed.includes('rotate_counter_clockwise')) {
-            const match = trimmed.match(/\((\d+)\)/);
-            if (match) await safeTello.rotate('ccw', parseInt(match[1]));
-          }
-          else if (trimmed.includes('flip')) {
-             const match = trimmed.match(/\(['"](\w+)['"]\)/);
-             if (match) await safeTello.flip(match[1]);
-          }
-          else if (trimmed.includes('set_speed')) {
-             const match = trimmed.match(/\((\d+)\)/);
-             if (match) await safeTello.set_speed(parseInt(match[1]));
-          }
-          else if (trimmed.includes('go_xyz_speed')) {
-             // tello.go_xyz_speed(x, y, z, speed)
-             // Allow spaces around arguments
-             const match = trimmed.match(/\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*\)/);
-             if (match) {
-                 await safeTello.go_xyz_speed(
-                     parseInt(match[1]), 
-                     parseInt(match[2]), 
-                     parseInt(match[3]), 
-                     parseInt(match[4])
-                 );
-             }
-          }
-          else if (trimmed.includes('emergency')) {
-             await safeTello.emergency();
-          }
-        }
+        // Execute Python code using Skulpt
+        await runSkulpt(pythonCode, safeTello, (msg) => {
+            useDroneStore.getState().addLog(msg);
+        });
       }
     } catch (e: any) {
-      if (e?.message !== 'Missão Abortada') {
+      const msg = e ? e.toString() : 'Unknown Error';
+      if (msg !== 'Missão Abortada') {
         console.error(e);
-        useDroneStore.getState().addLog(`Erro: ${e}`);
+        useDroneStore.getState().addLog(`Erro: ${msg}`);
       } else {
         useDroneStore.getState().addLog('Missão Abortada.');
       }
@@ -339,7 +287,7 @@ function App() {
                                 <select 
                                     value={environmentSettings.preset}
                                     onChange={(e) => updateEnvironmentSettings({ preset: e.target.value as any })}
-                                    className="w-full p-2 border border-slate-300 rounded-md text-sm"
+                                    className="w-full p-2 border border-slate-300 rounded-md text-sm mb-2"
                                 >
                                     <option value="city">Cidade</option>
                                     <option value="park">Parque</option>
@@ -349,6 +297,16 @@ function App() {
                                     <option value="forest">Floresta</option>
                                     <option value="apartment">Apartamento</option>
                                 </select>
+                                
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm text-slate-600">Mostrar Fundo 3D</label>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={environmentSettings.showBackground}
+                                        onChange={(e) => updateEnvironmentSettings({ showBackground: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex items-center justify-between">
